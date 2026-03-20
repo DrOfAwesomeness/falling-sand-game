@@ -721,19 +721,35 @@ function updateFuse(grid: Grid, x: number, y: number): void {
 }
 
 function updateClone(grid: Grid, x: number, y: number): void {
-  const aboveType = grid.get(x, y - 1);
+  const idx = y * grid.width + x;
+
+  let sourceY = y - 1;
+  while (grid.get(x, sourceY) === ParticleType.Clone) {
+    sourceY--;
+  }
+  const aboveType = grid.get(x, sourceY);
+
+  // lifetime stores the remembered source ParticleType
   if (
-    aboveType === ParticleType.Empty ||
-    aboveType === ParticleType.Clone ||
-    aboveType === ParticleType.Void
+    aboveType !== ParticleType.Empty &&
+    aboveType !== ParticleType.Clone &&
+    aboveType !== ParticleType.Void
   ) {
-    return;
+    grid.lifetime[idx] = aboveType;
   }
 
-  if (grid.get(x, y + 1) !== ParticleType.Empty) return;
+  const sourceType = grid.lifetime[idx]! as ParticleType;
+  if (sourceType === ParticleType.Empty) return;
 
-  grid.set(x, y + 1, aboveType);
-  grid.markMoved(x, y + 1);
+  let outputY = y + 1;
+  while (grid.get(x, outputY) === ParticleType.Clone) {
+    outputY++;
+  }
+
+  if (grid.get(x, outputY) !== ParticleType.Empty) return;
+
+  grid.set(x, outputY, sourceType);
+  grid.markMoved(x, outputY);
 }
 
 function updateVoid(grid: Grid, x: number, y: number): void {

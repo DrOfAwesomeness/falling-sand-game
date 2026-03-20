@@ -67,7 +67,16 @@ export const Game = ({
     const loop = (time: number) => {
       if (!simulationRef.current || !rendererRef.current) return;
 
-      const { paused } = stateRef.current;
+      const { paused, selectedMaterial, brushSize } = stateRef.current;
+
+      const pointer = pointerRef.current;
+      if (pointer.isDown && pointer.lastX >= 0 && pointer.lastY >= 0) {
+        if (pointer.isRightClick) {
+          simulationRef.current.erase(pointer.lastX, pointer.lastY, brushSize);
+        } else {
+          simulationRef.current.paint(pointer.lastX, pointer.lastY, brushSize, selectedMaterial);
+        }
+      }
 
       if (!paused) {
         simulationRef.current.step();
