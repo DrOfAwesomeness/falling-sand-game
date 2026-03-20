@@ -13,7 +13,7 @@ src/
   index.css         — Global styles (dark industrial theme, toolbar categories, canvas scaling)
   engine/           — Pure TypeScript simulation (zero React imports) → see engine/AGENTS.md
     types.ts        — ParticleType const enum, property tables, color tables
-    grid.ts         — Grid class (Uint8Array cell storage)
+    grid.ts         — Grid class (Uint8Array cell storage + chunk-based sleep/wake)
     particles.ts    — All particle update functions + UPDATE_FN dispatch table
     simulation.ts   — Simulation class (step/paint/erase/clear)
     renderer.ts     — ImageData canvas renderer with color lookup table
@@ -55,6 +55,7 @@ src/
 - Grid stored as flat `Uint8Array` — one byte per cell.
 - Rendering via `ImageData` + `Uint32Array` view (ABGR byte order, little-endian).
 - No object allocation in the hot path. Typed arrays only.
+- **Chunk-based sleep/wake**: Grid is divided into 8×8 chunks. Only chunks with recent activity (and their immediate neighbors) are simulated each frame. Settled regions cost zero CPU. See `engine/AGENTS.md` for details.
 
 ## Adding New Particle Types
 
@@ -72,3 +73,5 @@ src/
 - Forgetting to update all 9 property tables when adding a particle type — causes runtime undefined access.
 - Allocating objects in particle update functions — kills frame rate.
 - Using `set()` instead of `setKeepVariant()` when transforming particles — resets color variation.
+- Calling `incrementLifetime()` on particles with `MAX_LIFETIME = 0` (infinite) — keeps chunks awake forever, defeating the sleep/wake optimization.
+- Mutating `grid.cells[]` directly without calling `markChunkDirtyXY()` — the chunk won't wake up and the change may not be simulated.
