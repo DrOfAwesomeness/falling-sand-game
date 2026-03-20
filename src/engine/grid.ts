@@ -40,13 +40,17 @@ export class Grid {
   }
 
   /**
-   * Expand dirty set by 1 chunk in all directions → active set,
+   * Expand dirty set by 2 chunks in all directions → active set,
    * then propagate active upward through columns for gravity cascade.
    *
    * The simulation processes rows bottom-to-top, so falling particles
    * cascade upward through the processing order within a single frame.
    * Without upward propagation, the cascade stalls at the top of the
    * active region and only creeps up ~8 rows/frame.
+   *
+   * Note: Expansion radius is 2 chunks because water can flow laterally
+   * up to 4 cells per frame (spreadDistance=4), and chunks are 8 cells.
+   * A 2-chunk expansion ensures the active region stays ahead of flow.
    */
   buildActiveChunks(): number {
     const { chunksX, chunksY, dirtyChunks, activeChunks } = this;
@@ -56,10 +60,10 @@ export class Grid {
       for (let cx = 0; cx < chunksX; cx++) {
         if (!dirtyChunks[cy * chunksX + cx]) continue;
 
-        const y0 = cy > 0 ? cy - 1 : 0;
-        const y1 = cy < chunksY - 1 ? cy + 1 : cy;
-        const x0 = cx > 0 ? cx - 1 : 0;
-        const x1 = cx < chunksX - 1 ? cx + 1 : cx;
+        const y0 = cy > 1 ? cy - 2 : 0;
+        const y1 = cy < chunksY - 2 ? cy + 2 : chunksY - 1;
+        const x0 = cx > 1 ? cx - 2 : 0;
+        const x1 = cx < chunksX - 2 ? cx + 2 : chunksX - 1;
 
         for (let ny = y0; ny <= y1; ny++) {
           const row = ny * chunksX;
