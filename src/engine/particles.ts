@@ -576,8 +576,6 @@ function updateEmber(grid: Grid, x: number, y: number): void {
 }
 
 function updateMud(grid: Grid, x: number, y: number): void {
-  const lifetime = grid.incrementLifetime(x, y);
-
   for (let dy = -1; dy <= 1; dy++) {
     for (let dx = -1; dx <= 1; dx++) {
       if (dx === 0 && dy === 0) continue;
@@ -591,7 +589,7 @@ function updateMud(grid: Grid, x: number, y: number): void {
     }
   }
 
-  if (lifetime % 3 !== 0) return;
+  if (Math.random() >= 0.34) return;
   updateLiquid(grid, x, y, 2);
 }
 

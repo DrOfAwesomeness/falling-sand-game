@@ -151,8 +151,11 @@ export const Game = ({
 
         if (debugVisibleRef.current && debugOverlayRef.current) {
           const { w, h } = gridSizeRef.current;
+          const sim = simulationRef.current;
+          const totalChunks = sim ? sim.grid.chunksX * sim.grid.chunksY : 0;
+          const activeChunks = sim ? sim.grid.activeCount : 0;
           debugOverlayRef.current.textContent =
-            `Grid: ${w}\u00d7${h} (${(w * h).toLocaleString()} cells) | Sim: ${avgSim.toFixed(2)}ms | Render: ${avgRender.toFixed(2)}ms | FPS: ${fps}`;
+            `Grid: ${w}\u00d7${h} (${(w * h).toLocaleString()} cells) | Chunks: ${activeChunks}/${totalChunks} active | Sim: ${avgSim.toFixed(2)}ms | Render: ${avgRender.toFixed(2)}ms | FPS: ${fps}`;
         }
 
         framesSinceLastFpsRef.current = 0;
