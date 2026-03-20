@@ -58,6 +58,8 @@ export const Game = ({
 
     return () => {
       if (clearRef) clearRef.current = null;
+      simulationRef.current = null;
+      rendererRef.current = null;
     };
   }, [clearRef]);
 
