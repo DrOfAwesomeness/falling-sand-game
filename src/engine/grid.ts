@@ -40,8 +40,13 @@ export class Grid {
   }
 
   /**
-   * Expand dirty set by 1 chunk in all directions → active set.
-   * Boundary interactions require neighbors of dirty chunks to also run.
+   * Expand dirty set by 1 chunk in all directions → active set,
+   * then propagate active upward through columns for gravity cascade.
+   *
+   * The simulation processes rows bottom-to-top, so falling particles
+   * cascade upward through the processing order within a single frame.
+   * Without upward propagation, the cascade stalls at the top of the
+   * active region and only creeps up ~8 rows/frame.
    */
   buildActiveChunks(): number {
     const { chunksX, chunksY, dirtyChunks, activeChunks } = this;
@@ -61,6 +66,18 @@ export class Grid {
           for (let nx = x0; nx <= x1; nx++) {
             activeChunks[row + nx] = 1;
           }
+        }
+      }
+    }
+
+    // Gravity cascade: propagate active upward through columns.
+    // Bottom-to-top processing lets particles fall into just-vacated cells,
+    // but only within active chunks. If chunk below is active, chunk above
+    // must also be active so the cascade can continue upward.
+    for (let cx = 0; cx < chunksX; cx++) {
+      for (let cy = chunksY - 2; cy >= 0; cy--) {
+        if (activeChunks[(cy + 1) * chunksX + cx]) {
+          activeChunks[cy * chunksX + cx] = 1;
         }
       }
     }
