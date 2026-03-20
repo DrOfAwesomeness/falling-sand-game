@@ -18,7 +18,7 @@ src/
     simulation.ts   — Simulation class (step/paint/erase/clear)
     renderer.ts     — ImageData canvas renderer with color lookup table
   components/
-    Game.tsx        — Canvas + requestAnimationFrame loop + pointer input + Bresenham line drawing
+    Game.tsx        — Canvas + requestAnimationFrame loop + pointer input + Bresenham line drawing + dynamic grid sizing (ResizeObserver) + debug overlay (D key)
     Toolbar.tsx     — 5-category material picker + controls + FPS counter
 ```
 
@@ -45,7 +45,7 @@ src/
 ## CSS Architecture
 
 - Dark industrial theme with CSS custom properties.
-- Canvas renders at native grid resolution (200×150), CSS scales up with `image-rendering: pixelated`.
+- Canvas renders at native grid resolution (dynamically sized to window, CELL_SIZE=4px), CSS scales up with `image-rendering: pixelated`.
 - Toolbar uses 5 category groups (SOLIDS, POWDERS, LIQUIDS, GASES, SPECIAL) in a two-row layout.
 - Responsive: desktop padding 100px, mobile 160px for toolbar clearance.
 

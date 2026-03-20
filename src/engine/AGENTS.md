@@ -101,6 +101,6 @@ Particle interactions use probability checks (`Math.random() < threshold`) to av
 
 ## Key Constants
 
-- `GRID_W = 200`, `GRID_H = 150` (defined in `Game.tsx`, passed to Simulation/Renderer constructors).
+- Grid dimensions are **dynamic** — computed at runtime from window size (`CELL_SIZE = 4` pixels per cell). `Game.tsx` uses a `ResizeObserver` to recreate `Simulation` and `Renderer` when the container resizes.
 - `PARTICLE_COUNT = 25` (types.ts) — size of all lookup tables and `UPDATE_FN` array.
 - Out-of-bounds `grid.get()` returns `ParticleType.Stone` — natural wall behavior.

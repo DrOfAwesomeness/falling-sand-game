@@ -248,12 +248,13 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-top: 100px; /* Space for toolbar */
+  padding-top: 100px;
   padding-bottom: 16px;
   padding-left: 16px;
   padding-right: 16px;
   width: 100%;
   height: 100%;
+  position: relative;
 }
 
 .game-canvas {
@@ -262,14 +263,26 @@ html, body {
   cursor: crosshair;
   touch-action: none;
   box-shadow: 0 0 0 1px var(--toolbar-border), 0 8px 32px rgba(0, 0, 0, 0.5);
-  background-color: #0a0a0f; /* Match empty particle color */
-  
-  /* Maintain 4:3 aspect ratio (200:150) and fit within container */
+  background-color: #0a0a0f;
   width: 100%;
   height: 100%;
-  max-width: calc((100vh - 120px) * 4 / 3);
-  max-height: calc((100vw - 32px) * 3 / 4);
-  object-fit: contain;
+}
+
+.debug-overlay {
+  display: none;
+  position: absolute;
+  top: 108px;
+  left: 24px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  color: #00ff41;
+  background: rgba(0, 0, 0, 0.75);
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 255, 65, 0.3);
+  pointer-events: none;
+  z-index: 5;
+  white-space: nowrap;
 }
 
 /* Mobile adjustments */
@@ -299,10 +312,10 @@ html, body {
   }
   
   .game-container {
-    padding-top: 160px; /* More space for wrapped toolbar */
+    padding-top: 160px;
   }
-  
-  .game-canvas {
-    max-width: calc((100vh - 180px) * 4 / 3);
+
+  .debug-overlay {
+    top: 168px;
   }
 }

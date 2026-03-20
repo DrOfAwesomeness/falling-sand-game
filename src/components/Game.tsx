@@ -1,10 +1,10 @@
-import { useRef, useEffect, useCallback, useImperativeHandle, forwardRef } from "react";
+import { useRef, useEffect, useCallback } from "react";
 import { ParticleType } from "../engine/types";
 import { Simulation } from "../engine/simulation";
 import { Renderer } from "../engine/renderer";
 
-const GRID_W = 200;
-const GRID_H = 150;
+const CELL_SIZE = 4;
+const MIN_GRID_DIM = 50;
 
 interface GameProps {
   selectedMaterial: ParticleType;
@@ -21,13 +21,20 @@ export const Game = ({
   onFpsUpdate,
   clearRef,
 }: GameProps) => {
+  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const simulationRef = useRef<Simulation | null>(null);
   const rendererRef = useRef<Renderer | null>(null);
   const requestRef = useRef<number>(0);
   const lastFpsTimeRef = useRef<number>(0);
   const framesSinceLastFpsRef = useRef<number>(0);
-  
+
+  const simTimeSumRef = useRef(0);
+  const renderTimeSumRef = useRef(0);
+  const debugVisibleRef = useRef(false);
+  const debugOverlayRef = useRef<HTMLDivElement>(null);
+  const gridSizeRef = useRef({ w: 0, h: 0 });
+
   const stateRef = useRef({ selectedMaterial, brushSize, paused });
   useEffect(() => {
     stateRef.current = { selectedMaterial, brushSize, paused };
@@ -41,31 +48,70 @@ export const Game = ({
   });
 
   useEffect(() => {
-    if (!canvasRef.current || simulationRef.current) return;
-
+    const container = containerRef.current;
     const canvas = canvasRef.current;
-    canvas.style.imageRendering = "pixelated";
+    if (!container || !canvas) return;
 
-    const sim = new Simulation(GRID_W, GRID_H);
-    const renderer = new Renderer(canvas, GRID_W, GRID_H);
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
 
-    simulationRef.current = sim;
-    rendererRef.current = renderer;
+    const initGrid = (w: number, h: number) => {
+      gridSizeRef.current = { w, h };
+      const sim = new Simulation(w, h);
+      const renderer = new Renderer(canvas, w, h);
+      simulationRef.current = sim;
+      rendererRef.current = renderer;
+      if (clearRef) clearRef.current = () => sim.clear();
+    };
 
-    if (clearRef) {
-      clearRef.current = () => sim.clear();
-    }
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const { width, height } = entry.contentRect;
+      const w = Math.max(MIN_GRID_DIM, Math.floor(width / CELL_SIZE));
+      const h = Math.max(MIN_GRID_DIM, Math.floor(height / CELL_SIZE));
+      const current = gridSizeRef.current;
+      if (w === current.w && h === current.h) return;
+
+      if (resizeTimer) clearTimeout(resizeTimer);
+      // First observation — initialize immediately; subsequent — debounce
+      if (current.w === 0) {
+        initGrid(w, h);
+      } else {
+        resizeTimer = setTimeout(() => initGrid(w, h), 150);
+      }
+    });
+
+    observer.observe(container);
 
     return () => {
-      if (clearRef) clearRef.current = null;
+      observer.disconnect();
+      if (resizeTimer) clearTimeout(resizeTimer);
       simulationRef.current = null;
       rendererRef.current = null;
+      if (clearRef) clearRef.current = null;
     };
   }, [clearRef]);
 
   useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "d" || e.key === "D") {
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+        debugVisibleRef.current = !debugVisibleRef.current;
+        if (debugOverlayRef.current) {
+          debugOverlayRef.current.style.display = debugVisibleRef.current ? "block" : "none";
+        }
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  useEffect(() => {
     const loop = (time: number) => {
-      if (!simulationRef.current || !rendererRef.current) return;
+      if (!simulationRef.current || !rendererRef.current) {
+        requestRef.current = requestAnimationFrame(loop);
+        return;
+      }
 
       const { paused, selectedMaterial, brushSize } = stateRef.current;
 
@@ -78,16 +124,37 @@ export const Game = ({
         }
       }
 
+      let simTime = 0;
       if (!paused) {
+        const t0 = performance.now();
         simulationRef.current.step();
+        simTime = performance.now() - t0;
       }
 
+      const t1 = performance.now();
       rendererRef.current.render(simulationRef.current.grid);
+      const renderTime = performance.now() - t1;
+
+      simTimeSumRef.current += simTime;
+      renderTimeSumRef.current += renderTime;
 
       framesSinceLastFpsRef.current++;
       if (time - lastFpsTimeRef.current >= 500) {
-        const fps = Math.round((framesSinceLastFpsRef.current * 1000) / (time - lastFpsTimeRef.current));
+        const count = framesSinceLastFpsRef.current;
+        const fps = Math.round((count * 1000) / (time - lastFpsTimeRef.current));
         onFpsUpdate(fps);
+
+        const avgSim = count > 0 ? simTimeSumRef.current / count : 0;
+        const avgRender = count > 0 ? renderTimeSumRef.current / count : 0;
+        simTimeSumRef.current = 0;
+        renderTimeSumRef.current = 0;
+
+        if (debugVisibleRef.current && debugOverlayRef.current) {
+          const { w, h } = gridSizeRef.current;
+          debugOverlayRef.current.textContent =
+            `Grid: ${w}\u00d7${h} (${(w * h).toLocaleString()} cells) | Sim: ${avgSim.toFixed(2)}ms | Render: ${avgRender.toFixed(2)}ms | FPS: ${fps}`;
+        }
+
         framesSinceLastFpsRef.current = 0;
         lastFpsTimeRef.current = time;
       }
@@ -104,11 +171,12 @@ export const Game = ({
 
   const getGridCoords = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
-    if (!canvas) return { x: -1, y: -1 };
+    const sim = simulationRef.current;
+    if (!canvas || !sim) return { x: -1, y: -1 };
 
     const rect = canvas.getBoundingClientRect();
-    const x = Math.floor(((e.clientX - rect.left) / rect.width) * GRID_W);
-    const y = Math.floor(((e.clientY - rect.top) / rect.height) * GRID_H);
+    const x = Math.floor(((e.clientX - rect.left) / rect.width) * sim.grid.width);
+    const y = Math.floor(((e.clientY - rect.top) / rect.height) * sim.grid.height);
     return { x, y };
   }, []);
 
@@ -204,7 +272,7 @@ export const Game = ({
   }, []);
 
   return (
-    <div className="game-container">
+    <div ref={containerRef} className="game-container">
       <canvas
         ref={canvasRef}
         className="game-canvas"
@@ -214,6 +282,7 @@ export const Game = ({
         onPointerLeave={handlePointerLeave}
         onContextMenu={handleContextMenu}
       />
+      <div ref={debugOverlayRef} className="debug-overlay" />
     </div>
   );
 };
